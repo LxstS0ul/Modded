@@ -1,0 +1,144 @@
+--!strict
+local P, U, R, T, H = game:GetService("Players"), game:GetService("UserInputService"), game:GetService("RunService"), game:GetService("TweenService"), game:GetService("HttpService")
+local lp, cam, active = P.LocalPlayer, workspace.CurrentCamera, false
+local history: {CFrame} = {}
+
+-- [ 1. Загрузка Rendering Framework ]
+local RF_URL = "https://raw.githubusercontent.com/LxstS0ul/Modded/main/Rendering%20Framework"
+local success, RF = pcall(function()
+	return loadstring(game:HttpGet(RF_URL))()
+end)
+
+if not success or not RF then
+	warn("AIMING SYSTEM: Failed to load Rendering Framework from GitHub!")
+	return
+end
+
+-- [ 2. Конфигурация ]
+local AimingSystem = { Active = false, Friends = {} }
+local cfg = {
+	Aim = { Enabled = true, Method = "LinearMath", Smooth = 0.12, NoRecoil = true, Part = "Head" },
+	Visuals = { Chams = true, TargetHUD = true, Skeleton = true, TeamCheck = true },
+	Rage = { FOV = 250, AutoWall = true },
+	Movement = { Backtrack = true, BT_Length = 120, BT_Key = Enum.KeyCode.V, Speed = 16 },
+	Misc = { UI_Toggle = Enum.KeyCode.RightShift, Bind = Enum.UserInputType.MouseButton2, MaxDist = 1006 }
+}
+
+-- [ 3. Системы: Friends & Bone Priority ]
+local BONES = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
+
+local function isFriend(player: Player)
+	return table.find(AimingSystem.Friends, player.UserId) ~= nil
+end
+
+local function getVisiblePart(c: Model, p: Player): BasePart?
+	if isFriend(p) then return nil end
+	for _, name in BONES do
+		local part = c:FindFirstChild(name) :: BasePart?
+		if part then
+			local params = RaycastParams.new()
+			params.FilterDescendantsInstances, params.FilterType = {lp.Character, c}, Enum.RaycastFilterType.Exclude
+			if not workspace:Raycast(cam.CFrame.Position, part.Position - cam.CFrame.Position, params) then return part end
+		end
+	end
+	return nil
+end
+
+local function solveIntercept(target: BasePart): Vector3
+	local tPos, tVel = target.Position, target.AssemblyLinearVelocity
+	local char = lp.Character; local pVel = char and (char:FindFirstChild("HumanoidRootPart") :: BasePart).AssemblyLinearVelocity or Vector3.zero
+	local dist = (tPos - cam.CFrame.Position).Magnitude
+	return tPos + ((tVel - pVel) * 0.035) 
+end
+
+-- [ 4. HUD & Visuals ]
+local sg = Instance.new("ScreenGui", lp.PlayerGui)
+local targetHud = Instance.new("Frame", sg)
+targetHud.Size, targetHud.Position, targetHud.Visible = UDim2.new(0, 180, 0, 80), UDim2.new(0.5, 120, 0.5, -40), false
+targetHud.BackgroundColor3 = Color3.fromRGB(20, 20, 25); targetHud.BackgroundTransparency = 0.3
+Instance.new("UICorner", targetHud).CornerRadius = UDim.new(0, 12)
+local targetStats = Instance.new("TextLabel", targetHud)
+targetStats.Size, targetStats.Text, targetStats.TextColor3, targetStats.BackgroundTransparency = UDim2.new(1, -10, 1, -10), "", Color3.new(1,1,1), 1
+targetStats.Position = UDim2.new(0, 5, 0, 5); targetStats.TextXAlignment = Enum.TextXAlignment.Left
+
+-- [ 5. Main Engine Loop ]
+R.RenderStepped:Connect(function()
+	local target, bestFOV, currentPart = nil, cfg.Rage.FOV / 2, nil
+
+	for _, p in P:GetPlayers() do
+		local c = p.Character
+		if p == lp or not c or isFriend(p) or (c:FindFirstChildOfClass("Humanoid") or {Health = 0}).Health <= 0 then continue end
+		if cfg.Visuals.TeamCheck and p.Team == lp.Team then continue end
+
+		local part = getVisiblePart(c, p)
+		if part then
+			local v, onS = cam:WorldToViewportPoint(part.Position)
+			local fDist = (Vector2.new(v.X, v.Y) - U:GetMouseLocation()).Magnitude
+			if onS and fDist < bestFOV then target, bestFOV, currentPart = p, fDist, part end
+		end
+	end
+
+	if target and currentPart then
+		if cfg.Visuals.TargetHUD then
+			targetHud.Visible = true
+			targetStats.Text = `Name: {target.Name}\nDist: {math.floor((currentPart.Position - cam.CFrame.Position).Magnitude)}\nPart: {currentPart.Name}`
+		end
+		if active and cfg.Aim.Enabled then
+			local goal = if cfg.Aim.Method == "LinearMath" then solveIntercept(currentPart) else currentPart.Position
+			cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, goal), cfg.Aim.Smooth)
+		end
+	else targetHud.Visible = false end
+end)
+
+-- [ 6. Построение GUI ]
+local Win = RF:CreateWindow("AIMING SYSTEM")
+local CombatTab = RF:CreateTab(Win, "Combat")
+local VisualTab = RF:CreateTab(Win, "Visuals")
+local FriendTab = RF:CreateTab(Win, "Friends")
+local MoveTab = RF:CreateTab(Win, "Movement")
+local ConfigTab = RF:CreateTab(Win, "Configs")
+
+-- Combat
+RF:AddToggle(CombatTab, "Enabled", function(v) cfg.Aim.Enabled = v end)
+RF:AddSlider(CombatTab, "Smooth", 1, 100, function(v) cfg.Aim.Smooth = v / 100 end)
+RF:AddSlider(CombatTab, "FOV Size", 50, 800, function(v) cfg.Rage.FOV = v end)
+
+-- Visuals
+RF:AddToggle(VisualTab, "Chams (X-Ray)", function(v) cfg.Visuals.Chams = v end)
+RF:AddToggle(VisualTab, "Target HUD", function(v) cfg.Visuals.TargetHUD = v end)
+
+-- Friends
+local function updateFriends()
+	FriendTab:ClearAllChildren()
+	Instance.new("UIListLayout", FriendTab).Padding = UDim.new(0, 5)
+	for _, p in P:GetPlayers() do
+		if p == lp then continue end
+		local suffix = isFriend(p) and " [FRIEND]" or ""
+		RF:AddButton(FriendTab, p.Name .. suffix, function()
+			if isFriend(p) then table.remove(AimingSystem.Friends, table.find(AimingSystem.Friends, p.UserId))
+			else table.insert(AimingSystem.Friends, p.UserId) end
+			updateFriends()
+		end)
+	end
+end
+P.PlayerAdded:Connect(updateFriends); P.PlayerRemoving:Connect(updateFriends); updateFriends()
+
+-- Configs
+RF:AddButton(ConfigTab, "Copy Config (Clipboard)", function()
+	local setclip = (rawget(getfenv(), "setclipboard") or print)
+	setclip(H:JSONEncode(cfg)); RF:Notify("Copied to clipboard!")
+end)
+
+-- Movement
+RF:AddSlider(MoveTab, "Walk Speed", 16, 200, function(v) if lp.Character then lp.Character.Humanoid.WalkSpeed = v end end)
+
+-- [ Input ]
+U.InputBegan:Connect(function(i, g)
+	if g then return end
+	if i.KeyCode == cfg.Misc.UI_Toggle then Win.Main.Visible = not Win.Main.Visible end
+	if i.KeyCode == cfg.Misc.Bind or i.UserInputType == cfg.Misc.Bind then 
+		active = not active; RF:Notify("Aim: " .. (active and "ON" or "OFF"))
+	end
+end)
+
+RF:Notify("Aiming System Fully Initialized")
