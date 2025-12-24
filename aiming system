@@ -90,7 +90,7 @@ R.RenderStepped:Connect(function()
 	else targetHud.Visible = false end
 end)
 
--- [ 6. Построение GUI ]
+-- [ 6. making GUI ]
 local Win = RF:CreateWindow("AIMING SYSTEM")
 local CombatTab = RF:CreateTab(Win, "Combat")
 local VisualTab = RF:CreateTab(Win, "Visuals")
