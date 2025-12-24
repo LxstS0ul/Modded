@@ -3,7 +3,7 @@ local P, U, R, T, H = game:GetService("Players"), game:GetService("UserInputServ
 local lp, cam, active = P.LocalPlayer, workspace.CurrentCamera, false
 local history: {CFrame} = {}
 
--- [ 1. Загрузка Rendering Framework ]
+-- [ 1. loading Rendering Framework ]
 local RF_URL = "https://raw.githubusercontent.com/LxstS0ul/Modded/main/Rendering%20Framework"
 local success, RF = pcall(function()
 	return loadstring(game:HttpGet(RF_URL))()
@@ -14,7 +14,7 @@ if not success or not RF then
 	return
 end
 
--- [ 2. Конфигурация ]
+-- [ 2. Configuration ]
 local AimingSystem = { Active = false, Friends = {} }
 local cfg = {
 	Aim = { Enabled = true, Method = "LinearMath", Smooth = 0.12, NoRecoil = true, Part = "Head" },
@@ -24,7 +24,7 @@ local cfg = {
 	Misc = { UI_Toggle = Enum.KeyCode.RightShift, Bind = Enum.UserInputType.MouseButton2, MaxDist = 1006 }
 }
 
--- [ 3. Системы: Friends & Bone Priority ]
+-- [ 3. systems: Friends & Bone Priority ]
 local BONES = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
 
 local function isFriend(player: Player)
