@@ -6,11 +6,11 @@ local lp = game:GetService("Players").LocalPlayer
 local RenderingFramework = {}
 
 local Theme = {
-	Bg = Color3.fromRGB(18, 18, 22), 
-	Surface = Color3.fromRGB(30, 30, 35),
+	Bg = Color3.fromRGB(15, 15, 18), 
+	Surface = Color3.fromRGB(25, 25, 30),
 	Primary = Color3.fromRGB(180, 160, 255), 
 	Text = Color3.fromRGB(240, 240, 245),
-	Accent = Color3.fromRGB(50, 50, 60), 
+	Accent = Color3.fromRGB(45, 45, 50),
 	Anim = TweenInfo.new(0.4, Enum.EasingStyle.Exponential)
 }
 
@@ -20,12 +20,12 @@ function RenderingFramework:CreateWindow(name: string)
 	sg.ResetOnSpawn = false
 	
 	local main = Instance.new("Frame", sg)
-	main.Size, main.Position, main.BackgroundColor3 = UDim2.new(0, 520, 0, 380), UDim2.new(0.5, -260, 0.5, -190), Theme.Bg
-	local corner = Instance.new("UICorner", main); corner.CornerRadius = UDim.new(0, 24)
+	main.Size, main.Position, main.BackgroundColor3 = UDim2.new(0, 520, 0, 400), UDim2.new(0.5, -260, 0.5, -200), Theme.Bg
+	local corner = Instance.new("UICorner", main); corner.CornerRadius = UDim.new(0, 20)
 	
 	local title = Instance.new("TextLabel", main)
-	title.Size, title.Text, title.TextColor3, title.Font, title.Position = UDim2.new(1, 0, 0, 50), name, Theme.Primary, Enum.Font.SourceSansBold, UDim2.new(0,0,0,5)
-	title.BackgroundTransparency = 1
+	title.Size, title.Position, title.Text, title.TextColor3, title.Font = UDim2.new(1, 0, 0, 50), UDim2.new(0, 0, 0, 5), name, Theme.Primary, Enum.Font.SourceSansBold
+	title.BackgroundTransparency = 1; title.TextSize = 20
 	
 	local container = Instance.new("Frame", main)
 	container.Size, container.Position, container.BackgroundTransparency = UDim2.new(1, -160, 1, -70), UDim2.new(0, 145, 0, 60), 1
@@ -35,7 +35,7 @@ function RenderingFramework:CreateWindow(name: string)
 	local tCorner = Instance.new("UICorner", tabHolder); tCorner.CornerRadius = UDim.new(0, 16)
 	local layout = Instance.new("UIListLayout", tabHolder); layout.Padding = UDim.new(0, 5); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-	-- Smooth Dragging
+	-- Draggable
 	local dragging, dragStart, startPos
 	main.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -86,16 +86,15 @@ end
 
 function RenderingFramework:AddSlider(page, name: string, min: number, max: number, callback: (number) -> ())
 	local sFrame = Instance.new("Frame", page)
-	sFrame.Size, sFrame.BackgroundColor3 = UDim2.new(1, -12, 0, 50), Theme.Surface
+	sFrame.Size, sFrame.BackgroundColor3 = UDim2.new(1, -12, 0, 55), Theme.Surface
 	Instance.new("UICorner", sFrame).CornerRadius = UDim.new(0, 12)
 	
 	local label = Instance.new("TextLabel", sFrame)
-	label.Size, label.Position, label.BackgroundTransparency, label.Text, label.TextColor3 = UDim2.new(1, -10, 0, 20), UDim2.new(0, 10, 0, 5), 1, name, Theme.Text
+	label.Size, label.Position, label.BackgroundTransparency, label.Text, label.TextColor3 = UDim2.new(1, -10, 0, 25), UDim2.new(0, 10, 0, 5), 1, name .. ": " .. min, Theme.Text
 	label.TextXAlignment, label.Font = Enum.TextXAlignment.Left, Enum.Font.SourceSans
 	
 	local bar = Instance.new("Frame", sFrame)
-	bar.Size, bar.Position, bar.BackgroundColor3 = UDim2.new(0.9, 0, 0, 4), UDim2.new(0.05, 0, 0.7, 0), Theme.Accent
-	
+	bar.Size, bar.Position, bar.BackgroundColor3 = UDim2.new(0.9, 0, 0, 4), UDim2.new(0.05, 0, 0.75, 0), Theme.Accent
 	local fill = Instance.new("Frame", bar)
 	fill.Size, fill.BackgroundColor3 = UDim2.new(0, 0, 1, 0), Theme.Primary
 	
@@ -118,8 +117,18 @@ function RenderingFramework:AddSlider(page, name: string, min: number, max: numb
 	end)
 end
 
+function RenderingFramework:AddButton(page, name: string, callback: () -> ())
+	local b = Instance.new("TextButton", page)
+	b.Size, b.BackgroundColor3, b.Text, b.TextColor3 = UDim2.new(1, -12, 0, 40), Theme.Surface, "  " .. name, Theme.Text
+	b.TextXAlignment = Enum.TextXAlignment.Left; b.Font = Enum.Font.SourceSans
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+	b.MouseButton1Click:Connect(callback)
+end
+
 function RenderingFramework:Notify(text: string)
-	local n = Instance.new("Frame", lp.PlayerGui:FindFirstChild("RenderingFramework_UI"))
+	local gui = lp.PlayerGui:FindFirstChild("RenderingFramework_UI")
+	if not gui then return end
+	local n = Instance.new("Frame", gui)
 	n.Size, n.Position, n.BackgroundColor3 = UDim2.new(0, 220, 0, 45), UDim2.new(1, 250, 1, -60), Theme.Surface
 	n.AnchorPoint = Vector2.new(1, 1); Instance.new("UICorner", n).CornerRadius = UDim.new(0, 12)
 	local l = Instance.new("TextLabel", n)
