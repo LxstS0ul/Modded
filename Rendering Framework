@@ -3,141 +3,156 @@ local T = game:GetService("TweenService")
 local U = game:GetService("UserInputService")
 local lp = game:GetService("Players").LocalPlayer
 
-local RenderingFramework = {}
-
-local Theme = {
-	Bg = Color3.fromRGB(15, 15, 18), 
-	Surface = Color3.fromRGB(25, 25, 30),
-	Primary = Color3.fromRGB(180, 160, 255), 
-	Text = Color3.fromRGB(240, 240, 245),
-	Accent = Color3.fromRGB(45, 45, 50),
-	Anim = TweenInfo.new(0.4, Enum.EasingStyle.Exponential)
+local RenderingFramework = {
+	Flags = {},
+	Theme = {
+		Main = Color3.fromRGB(18, 18, 22),
+		Surface = Color3.fromRGB(28, 28, 33),
+		Accent = Color3.fromRGB(180, 160, 255),
+		Outline = Color3.fromRGB(45, 45, 50),
+		Text = Color3.fromRGB(240, 240, 245),
+		Muted = Color3.fromRGB(150, 150, 160),
+		Anim = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+	}
 }
 
+local function create(class: string, props: {[string]: any}): any
+	local obj = Instance.new(class)
+	for k, v in props do obj[k] = v end
+	return obj
+end
+
+local function addCorner(obj: GuiObject, r: number)
+	create("UICorner", {CornerRadius = UDim.new(0, r), Parent = obj})
+end
+
+local function addStroke(obj: GuiObject, color: Color3, thickness: number)
+	create("UIStroke", {Color = color, Thickness = thickness, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = obj})
+end
+
+local function ripple(obj: GuiObject)
+	obj.ClipsDescendants = true
+	obj.MouseButton1Click:Connect(function()
+		local m = U:GetMouseLocation()
+		local r = create("Frame", {
+			Size = UDim2.new(0, 0, 0, 0),
+			Position = UDim2.new(0, m.X - obj.AbsolutePosition.X, 0, m.Y - obj.AbsolutePosition.Y),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.8,
+			Parent = obj
+		})
+		addCorner(r, 100)
+		T:Create(r, TweenInfo.new(0.5), {Size = UDim2.new(0, 500, 0, 500), Position = r.Position - UDim2.new(0, 250, 0, 250), BackgroundTransparency = 1}):Play()
+		task.delay(0.5, function() r:Destroy() end)
+	end)
+end
+
 function RenderingFramework:CreateWindow(name: string)
-	local sg = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-	sg.Name = "RenderingFramework_UI"
-	sg.ResetOnSpawn = false
-	
-	local main = Instance.new("Frame", sg)
-	main.Size, main.Position, main.BackgroundColor3 = UDim2.new(0, 520, 0, 400), UDim2.new(0.5, -260, 0.5, -200), Theme.Bg
-	local corner = Instance.new("UICorner", main); corner.CornerRadius = UDim.new(0, 20)
-	
-	local title = Instance.new("TextLabel", main)
-	title.Size, title.Position, title.Text, title.TextColor3, title.Font = UDim2.new(1, 0, 0, 50), UDim2.new(0, 0, 0, 5), name, Theme.Primary, Enum.Font.SourceSansBold
-	title.BackgroundTransparency = 1; title.TextSize = 20
-	
-	local container = Instance.new("Frame", main)
-	container.Size, container.Position, container.BackgroundTransparency = UDim2.new(1, -160, 1, -70), UDim2.new(0, 145, 0, 60), 1
-	
-	local tabHolder = Instance.new("Frame", main)
-	tabHolder.Size, tabHolder.Position, tabHolder.BackgroundColor3 = UDim2.new(0, 125, 1, -70), UDim2.new(0, 12, 0, 60), Theme.Surface
-	local tCorner = Instance.new("UICorner", tabHolder); tCorner.CornerRadius = UDim.new(0, 16)
-	local layout = Instance.new("UIListLayout", tabHolder); layout.Padding = UDim.new(0, 5); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local sg = create("ScreenGui", {Name = "RenderingFramework_UI", ResetOnSpawn = false, Parent = lp:WaitForChild("PlayerGui")})
+	local main = create("Frame", {Size = UDim2.new(0, 550, 0, 420), Position = UDim2.new(0.5, -275, 0.5, -210), BackgroundColor3 = self.Theme.Main, Parent = sg})
+	addCorner(main, 24); addStroke(main, self.Theme.Outline, 1)
 
-	-- Draggable
-	local dragging, dragStart, startPos
-	main.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true; dragStart = input.Position; startPos = main.Position
-		end
-	end)
-	U.InputChanged:Connect(function(input)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			local delta = input.Position - dragStart
-			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		end
-	end)
-	U.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+	local sidebar = create("Frame", {Size = UDim2.new(0, 140, 1, -24), Position = UDim2.new(0, 12, 0, 12), BackgroundColor3 = self.Theme.Surface, Parent = main})
+	addCorner(sidebar, 18)
+	
+	create("TextLabel", {Size = UDim2.new(1, 0, 0, 50), Text = name, TextColor3 = self.Theme.Accent, Font = Enum.Font.SourceSansBold, TextSize = 18, BackgroundTransparency = 1, Parent = sidebar})
 
-	return {Main = main, Container = container, TabHolder = tabHolder, Screen = sg}
+	local container = create("Frame", {Size = UDim2.new(1, -170, 1, -24), Position = UDim2.new(0, 158, 0, 12), BackgroundTransparency = 1, Parent = main})
+	create("UIListLayout", {Padding = UDim.new(0, 6), Parent = sidebar, HorizontalAlignment = Enum.HorizontalAlignment.Center})
+
+	local drag, start, startPos
+	main.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = true; start = i.Position; startPos = main.Position end end)
+	U.InputChanged:Connect(function(i) if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
+		local d = i.Position - start; main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+	end end)
+	U.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end end)
+
+	return {Main = main, Container = container, Sidebar = sidebar}
 end
 
 function RenderingFramework:CreateTab(win, name: string)
-	local page = Instance.new("ScrollingFrame", win.Container)
-	page.Size, page.BackgroundTransparency, page.Visible, page.ScrollBarThickness = UDim2.fromScale(1, 1), 1, false, 0
-	Instance.new("UIListLayout", page).Padding = UDim.new(0, 8)
-	
-	local btn = Instance.new("TextButton", win.TabHolder)
-	btn.Size, btn.Text, btn.BackgroundColor3, btn.TextColor3 = UDim2.new(1, -10, 0, 40), name, Theme.Accent, Theme.Text
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10); btn.Font = Enum.Font.SourceSansBold
-	
+	local page = create("ScrollingFrame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, ScrollBarThickness = 0, Parent = win.Container})
+	create("UIListLayout", {Padding = UDim.new(0, 10), Parent = page})
+
+	local btn = create("TextButton", {Size = UDim2.new(1, -15, 0, 40), BackgroundTransparency = 1, Text = name, TextColor3 = self.Theme.Muted, Font = Enum.Font.SourceSansBold, Parent = win.Sidebar})
+	addCorner(btn, 10)
 	btn.MouseButton1Click:Connect(function()
 		for _, v in win.Container:GetChildren() do if v:IsA("ScrollingFrame") then v.Visible = false end end
 		page.Visible = true
+		for _, b in win.Sidebar:GetChildren() do if b:IsA("TextButton") then T:Create(b, self.Theme.Anim, {TextColor3 = self.Theme.Muted}):Play() end end
+		T:Create(btn, self.Theme.Anim, {TextColor3 = self.Theme.Accent}):Play()
 	end)
 	return page
 end
 
-function RenderingFramework:AddToggle(page, name: string, callback: (boolean) -> ())
-	local b = Instance.new("TextButton", page)
-	b.Size, b.BackgroundColor3, b.Text, b.TextColor3 = UDim2.new(1, -12, 0, 45), Theme.Surface, "  " .. name .. ": OFF", Theme.Text
-	b.TextXAlignment = Enum.TextXAlignment.Left; b.Font = Enum.Font.SourceSans
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 12)
-	
-	local state = false
+function RenderingFramework:AddSection(page, name: string)
+	local f = create("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Parent = page})
+	create("TextLabel", {Size = UDim2.new(1, 0, 1, 0), Text = name:upper(), TextColor3 = self.Theme.Accent, Font = Enum.Font.SourceSansBold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, Parent = f})
+end
+
+function RenderingFramework:AddToggle(page, flag: string, name: string, default: boolean, callback: (boolean) -> ())
+	local b = create("TextButton", {Size = UDim2.new(1, -12, 0, 45), BackgroundColor3 = self.Theme.Surface, Text = "  " .. name, TextColor3 = self.Theme.Text, Font = Enum.Font.SourceSans, TextXAlignment = Enum.TextXAlignment.Left, Parent = page})
+	addCorner(b, 12); addStroke(b, self.Theme.Outline, 1); ripple(b)
+	local ind = create("Frame", {Size = UDim2.new(0, 36, 0, 18), Position = UDim2.new(1, -46, 0.5, -9), BackgroundColor3 = default and self.Theme.Accent or Color3.fromRGB(60,60,60), Parent = b})
+	addCorner(ind, 10)
+	local dot = create("Frame", {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(default and 0.55 or 0.1, 0, 0.5, -6), BackgroundColor3 = Color3.new(1,1,1), Parent = ind})
+	addCorner(dot, 10)
+	local s = default
 	b.MouseButton1Click:Connect(function()
-		state = not state
-		b.Text = "  " .. name .. ": " .. (state and "ON" or "OFF")
-		T:Create(b, Theme.Anim, {TextColor3 = state and Theme.Primary or Theme.Text}):Play()
-		callback(state)
+		s = not s; self.Flags[flag] = s
+		T:Create(ind, self.Theme.Anim, {BackgroundColor3 = s and self.Theme.Accent or Color3.fromRGB(60,60,60)}):Play()
+		T:Create(dot, self.Theme.Anim, {Position = UDim2.new(s and 0.55 or 0.1, 0, 0.5, -6)}):Play()
+		callback(s)
 	end)
 end
 
-function RenderingFramework:AddSlider(page, name: string, min: number, max: number, callback: (number) -> ())
-	local sFrame = Instance.new("Frame", page)
-	sFrame.Size, sFrame.BackgroundColor3 = UDim2.new(1, -12, 0, 55), Theme.Surface
-	Instance.new("UICorner", sFrame).CornerRadius = UDim.new(0, 12)
-	
-	local label = Instance.new("TextLabel", sFrame)
-	label.Size, label.Position, label.BackgroundTransparency, label.Text, label.TextColor3 = UDim2.new(1, -10, 0, 25), UDim2.new(0, 10, 0, 5), 1, name .. ": " .. min, Theme.Text
-	label.TextXAlignment, label.Font = Enum.TextXAlignment.Left, Enum.Font.SourceSans
-	
-	local bar = Instance.new("Frame", sFrame)
-	bar.Size, bar.Position, bar.BackgroundColor3 = UDim2.new(0.9, 0, 0, 4), UDim2.new(0.05, 0, 0.75, 0), Theme.Accent
-	local fill = Instance.new("Frame", bar)
-	fill.Size, fill.BackgroundColor3 = UDim2.new(0, 0, 1, 0), Theme.Primary
-	
-	local function update(input: InputObject)
-		local pos = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-		fill.Size = UDim2.new(pos, 0, 1, 0)
-		local val = math.floor(min + (max - min) * pos)
-		label.Text = name .. ": " .. tostring(val)
-		callback(val)
+function RenderingFramework:AddSlider(page, flag: string, name: string, min: number, max: number, default: number, callback: (number) -> ())
+	local f = create("Frame", {Size = UDim2.new(1, -12, 0, 65), BackgroundColor3 = self.Theme.Surface, Parent = page})
+	addCorner(f, 12); addStroke(f, self.Theme.Outline, 1)
+	local l = create("TextLabel", {Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 5), Text = name .. ": " .. default, TextColor3 = self.Theme.Text, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, Parent = f})
+	local bar = create("Frame", {Size = UDim2.new(0.9, 0, 0, 4), Position = UDim2.new(0.05, 0, 0.8, -4), BackgroundColor3 = self.Theme.Accent, BackgroundTransparency = 0.7, Parent = f})
+	local fill = create("Frame", {Size = UDim2.new((default-min)/(max-min), 0, 1, 0), BackgroundColor3 = self.Theme.Accent, Parent = bar})
+	addCorner(fill, 2)
+	local function upd(input)
+		local p = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+		local v = math.floor(min + (max - min) * p)
+		fill.Size = UDim2.new(p, 0, 1, 0); l.Text = name .. ": " .. v; callback(v)
 	end
-	
-	bar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			update(input)
-			local con; con = U.InputChanged:Connect(function(i)
-				if i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end
-			end)
-			U.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then con:Disconnect() end end)
-		end
+	bar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+		local con; con = U.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then upd(input) end end)
+		U.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then con:Disconnect() end end)
+		upd(i)
+	end end)
+end
+
+function RenderingFramework:AddDropdown(page, flag: string, name: string, options: {string}, callback: (string) -> ())
+	local f = create("Frame", {Size = UDim2.new(1, -12, 0, 45), BackgroundColor3 = self.Theme.Surface, ClipsDescendants = true, Parent = page})
+	addCorner(f, 12); addStroke(f, self.Theme.Outline, 1)
+	local b = create("TextButton", {Size = UDim2.new(1, 0, 0, 45), Text = "  " .. name, TextColor3 = self.Theme.Text, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, Parent = f})
+	local open = false
+	b.MouseButton1Click:Connect(function()
+		open = not open
+		T:Create(f, self.Theme.Anim, {Size = open and UDim2.new(1, -12, 0, 45 + (#options * 35)) or UDim2.new(1, -12, 0, 45)}):Play()
 	end)
+	for i, opt in options do
+		local o = create("TextButton", {Size = UDim2.new(1, -10, 0, 30), Position = UDim2.new(0, 5, 0, 45 + ((i - 1) * 35)), BackgroundColor3 = self.Theme.Accent, BackgroundTransparency = 0.8, Text = opt, TextColor3 = self.Theme.Text, Parent = f})
+		addCorner(o, 8); o.MouseButton1Click:Connect(function() b.Text = "  " .. name .. ": " .. opt; callback(opt); open = false; T:Create(f, self.Theme.Anim, {Size = UDim2.new(1, -12, 0, 45)}):Play() end)
+	end
 end
 
 function RenderingFramework:AddButton(page, name: string, callback: () -> ())
-	local b = Instance.new("TextButton", page)
-	b.Size, b.BackgroundColor3, b.Text, b.TextColor3 = UDim2.new(1, -12, 0, 40), Theme.Surface, "  " .. name, Theme.Text
-	b.TextXAlignment = Enum.TextXAlignment.Left; b.Font = Enum.Font.SourceSans
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
-	b.MouseButton1Click:Connect(callback)
+	local b = create("TextButton", {Size = UDim2.new(1, -12, 0, 40), BackgroundColor3 = self.Theme.Surface, Text = "  " .. name, TextColor3 = self.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, Parent = page})
+	addCorner(b, 10); ripple(b); b.MouseButton1Click:Connect(callback)
 end
 
 function RenderingFramework:Notify(text: string)
-	local gui = lp.PlayerGui:FindFirstChild("RenderingFramework_UI")
-	if not gui then return end
-	local n = Instance.new("Frame", gui)
-	n.Size, n.Position, n.BackgroundColor3 = UDim2.new(0, 220, 0, 45), UDim2.new(1, 250, 1, -60), Theme.Surface
-	n.AnchorPoint = Vector2.new(1, 1); Instance.new("UICorner", n).CornerRadius = UDim.new(0, 12)
-	local l = Instance.new("TextLabel", n)
-	l.Size, l.Text, l.TextColor3, l.BackgroundTransparency, l.Font = UDim2.new(1, 0, 1, 0), "  " .. text, Theme.Text, 1, Enum.Font.SourceSansSemibold
-	T:Create(n, Theme.Anim, {Position = UDim2.new(1, -20, 1, -60)}):Play()
-	task.delay(3, function()
-		T:Create(n, Theme.Anim, {Position = UDim2.new(1, 250, 1, -60)}):Play()
-		task.wait(0.5); n:Destroy()
-	end)
+	local sg = lp.PlayerGui:FindFirstChild("RenderingFramework_UI")
+	if not sg then return end
+	local n = create("Frame", {Size = UDim2.new(0, 220, 0, 45), Position = UDim2.new(1, 230, 1, -60), BackgroundColor3 = self.Theme.Surface, AnchorPoint = Vector2.new(1, 1), Parent = sg})
+	addCorner(n, 12); addStroke(n, self.Theme.Accent, 1)
+	create("TextLabel", {Size = UDim2.new(1, 0, 1, 0), Text = text, TextColor3 = self.Theme.Text, BackgroundTransparency = 1, Parent = n})
+	T:Create(n, self.Theme.Anim, {Position = UDim2.new(1, -20, 1, -60)}):Play()
+	task.delay(3, function() T:Create(n, self.Theme.Anim, {Position = UDim2.new(1, 230, 1, -60)}):Play(); task.wait(0.5); n:Destroy() end)
 end
 
 return RenderingFramework
