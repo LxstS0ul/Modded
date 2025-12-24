@@ -1,1 +1,134 @@
+--!strict
+local T = game:GetService("TweenService")
+local U = game:GetService("UserInputService")
+local lp = game:GetService("Players").LocalPlayer
 
+local RenderingFramework = {}
+
+local Theme = {
+	Bg = Color3.fromRGB(18, 18, 22), 
+	Surface = Color3.fromRGB(30, 30, 35),
+	Primary = Color3.fromRGB(180, 160, 255), 
+	Text = Color3.fromRGB(240, 240, 245),
+	Accent = Color3.fromRGB(50, 50, 60), 
+	Anim = TweenInfo.new(0.4, Enum.EasingStyle.Exponential)
+}
+
+function RenderingFramework:CreateWindow(name: string)
+	local sg = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
+	sg.Name = "RenderingFramework_UI"
+	sg.ResetOnSpawn = false
+	
+	local main = Instance.new("Frame", sg)
+	main.Size, main.Position, main.BackgroundColor3 = UDim2.new(0, 520, 0, 380), UDim2.new(0.5, -260, 0.5, -190), Theme.Bg
+	local corner = Instance.new("UICorner", main); corner.CornerRadius = UDim.new(0, 24)
+	
+	local title = Instance.new("TextLabel", main)
+	title.Size, title.Text, title.TextColor3, title.Font, title.Position = UDim2.new(1, 0, 0, 50), name, Theme.Primary, Enum.Font.SourceSansBold, UDim2.new(0,0,0,5)
+	title.BackgroundTransparency = 1
+	
+	local container = Instance.new("Frame", main)
+	container.Size, container.Position, container.BackgroundTransparency = UDim2.new(1, -160, 1, -70), UDim2.new(0, 145, 0, 60), 1
+	
+	local tabHolder = Instance.new("Frame", main)
+	tabHolder.Size, tabHolder.Position, tabHolder.BackgroundColor3 = UDim2.new(0, 125, 1, -70), UDim2.new(0, 12, 0, 60), Theme.Surface
+	local tCorner = Instance.new("UICorner", tabHolder); tCorner.CornerRadius = UDim.new(0, 16)
+	local layout = Instance.new("UIListLayout", tabHolder); layout.Padding = UDim.new(0, 5); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	-- Smooth Dragging
+	local dragging, dragStart, startPos
+	main.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true; dragStart = input.Position; startPos = main.Position
+		end
+	end)
+	U.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	U.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+
+	return {Main = main, Container = container, TabHolder = tabHolder, Screen = sg}
+end
+
+function RenderingFramework:CreateTab(win, name: string)
+	local page = Instance.new("ScrollingFrame", win.Container)
+	page.Size, page.BackgroundTransparency, page.Visible, page.ScrollBarThickness = UDim2.fromScale(1, 1), 1, false, 0
+	Instance.new("UIListLayout", page).Padding = UDim.new(0, 8)
+	
+	local btn = Instance.new("TextButton", win.TabHolder)
+	btn.Size, btn.Text, btn.BackgroundColor3, btn.TextColor3 = UDim2.new(1, -10, 0, 40), name, Theme.Accent, Theme.Text
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10); btn.Font = Enum.Font.SourceSansBold
+	
+	btn.MouseButton1Click:Connect(function()
+		for _, v in win.Container:GetChildren() do if v:IsA("ScrollingFrame") then v.Visible = false end end
+		page.Visible = true
+	end)
+	return page
+end
+
+function RenderingFramework:AddToggle(page, name: string, callback: (boolean) -> ())
+	local b = Instance.new("TextButton", page)
+	b.Size, b.BackgroundColor3, b.Text, b.TextColor3 = UDim2.new(1, -12, 0, 45), Theme.Surface, "  " .. name .. ": OFF", Theme.Text
+	b.TextXAlignment = Enum.TextXAlignment.Left; b.Font = Enum.Font.SourceSans
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 12)
+	
+	local state = false
+	b.MouseButton1Click:Connect(function()
+		state = not state
+		b.Text = "  " .. name .. ": " .. (state and "ON" or "OFF")
+		T:Create(b, Theme.Anim, {TextColor3 = state and Theme.Primary or Theme.Text}):Play()
+		callback(state)
+	end)
+end
+
+function RenderingFramework:AddSlider(page, name: string, min: number, max: number, callback: (number) -> ())
+	local sFrame = Instance.new("Frame", page)
+	sFrame.Size, sFrame.BackgroundColor3 = UDim2.new(1, -12, 0, 50), Theme.Surface
+	Instance.new("UICorner", sFrame).CornerRadius = UDim.new(0, 12)
+	
+	local label = Instance.new("TextLabel", sFrame)
+	label.Size, label.Position, label.BackgroundTransparency, label.Text, label.TextColor3 = UDim2.new(1, -10, 0, 20), UDim2.new(0, 10, 0, 5), 1, name, Theme.Text
+	label.TextXAlignment, label.Font = Enum.TextXAlignment.Left, Enum.Font.SourceSans
+	
+	local bar = Instance.new("Frame", sFrame)
+	bar.Size, bar.Position, bar.BackgroundColor3 = UDim2.new(0.9, 0, 0, 4), UDim2.new(0.05, 0, 0.7, 0), Theme.Accent
+	
+	local fill = Instance.new("Frame", bar)
+	fill.Size, fill.BackgroundColor3 = UDim2.new(0, 0, 1, 0), Theme.Primary
+	
+	local function update(input: InputObject)
+		local pos = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+		fill.Size = UDim2.new(pos, 0, 1, 0)
+		local val = math.floor(min + (max - min) * pos)
+		label.Text = name .. ": " .. tostring(val)
+		callback(val)
+	end
+	
+	bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			update(input)
+			local con; con = U.InputChanged:Connect(function(i)
+				if i.UserInputType == Enum.UserInputType.MouseMovement then update(i) end
+			end)
+			U.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then con:Disconnect() end end)
+		end
+	end)
+end
+
+function RenderingFramework:Notify(text: string)
+	local n = Instance.new("Frame", lp.PlayerGui:FindFirstChild("RenderingFramework_UI"))
+	n.Size, n.Position, n.BackgroundColor3 = UDim2.new(0, 220, 0, 45), UDim2.new(1, 250, 1, -60), Theme.Surface
+	n.AnchorPoint = Vector2.new(1, 1); Instance.new("UICorner", n).CornerRadius = UDim.new(0, 12)
+	local l = Instance.new("TextLabel", n)
+	l.Size, l.Text, l.TextColor3, l.BackgroundTransparency, l.Font = UDim2.new(1, 0, 1, 0), "  " .. text, Theme.Text, 1, Enum.Font.SourceSansSemibold
+	T:Create(n, Theme.Anim, {Position = UDim2.new(1, -20, 1, -60)}):Play()
+	task.delay(3, function()
+		T:Create(n, Theme.Anim, {Position = UDim2.new(1, 250, 1, -60)}):Play()
+		task.wait(0.5); n:Destroy()
+	end)
+end
+
+return RenderingFramework
